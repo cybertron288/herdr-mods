@@ -1,12 +1,13 @@
 import type { EngineInterface } from 'claude-code'
 
 import type { Decision } from '../types'
+import { userHome } from './home'
 
 const KEEP_LINES = 1000
 
 // Outside the plugin folder: a write inside it would hot-reload the mod.
 async function logPath($: EngineInterface): Promise<string | undefined> {
-  const home = await $.env.get('HOME')
+  const home = await userHome($)
 
   return home === undefined ? undefined : `${home}/.claude/cc-model-router/decisions.jsonl`
 }
