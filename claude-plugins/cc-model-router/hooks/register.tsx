@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, PromptSubmitInput, Register } from 'claude-code'
 
 import type { Decision, DecisionSource, RouterState, Tier } from '../types'
+import { userHome } from './home'
 import { logDecision } from './log'
 import { decideAgainstSticky, isFollowUp, parsePrefix, rankByRules } from './rank'
 import { routeFor } from './route'
@@ -123,13 +124,11 @@ async function decide($: EngineInterface, verdict: Verdict, text: string): Promi
 let herdrFile: Promise<string | null> | null = null
 
 function herdrPath($: EngineInterface): Promise<string | null> {
-  herdrFile ??= $.process
-    .run(['sh', '-c', 'printf "%s\\n%s" "$HC_TERMINAL_ID" "$HOME"'])
-    .then(r => {
-      const [terminal, home] = r.stdout.split('\n')
-
-      return r.exitCode === 0 && terminal && home && /^[\w.-]+$/.test(terminal) ? `${home}/.local/state/herdr-model-router/${terminal}.json` : null
-    })
+  // Read from the environment, not through `sh`: Windows has no `sh` on Claude Code's PATH.
+  herdrFile ??= Promise.all([$.env.get('HC_TERMINAL_ID'), userHome($)])
+    .then(([terminal, home]) =>
+      terminal && home && /^[\w.-]+$/.test(terminal) ? `${home}/.local/state/herdr-model-router/${terminal}.json` : null,
+    )
     .catch(() => null)
 
   return herdrFile
