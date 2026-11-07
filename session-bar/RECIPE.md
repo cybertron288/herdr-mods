@@ -127,7 +127,7 @@ Art: `folder`, `git-branch`, `arrow-up`, `arrow-down`, `pencil`, `plus`, `triang
 
 ### Claude Code plugin (`claude-plugin/`)
 
-Name `session-bar`, version 0.2.0. Install:
+Name `session-bar`, version 0.2.1. Install:
 
 ```sh
 claude plugin marketplace add cybertron288/herdr-mods
@@ -143,7 +143,7 @@ A refresh reads the session model, usage (context percent and window, plus rate 
 
 Effort shown, first that exists: the router's effort, the latest request's effort, the `/config` row whose key or label matches `effort`, the previous shown value, `effortLevel` in `~/.claude/settings.json`. The model shown is the router's pick when the router has one.
 
-Where it writes: it runs `sh -c 'printf "%s\n%s" "$HC_TERMINAL_ID" "$HOME"'` once to read `HC_TERMINAL_ID`. If that id matches `^[\w.-]+$` and `$HOME` exists, it writes `{ ...info, at: Date.now() }` to `$HOME/.local/state/herdr-session-bar/<terminal>.json`. With no `HC_TERMINAL_ID` it writes nothing. It writes when the info changed, and at least once per load.
+Where it writes: it reads `HC_TERMINAL_ID` and the home folder (`HOME`, else `USERPROFILE`, as Windows sets no `HOME`) once, with `$.env.get`, never through a shell: Windows has no `sh` on Claude Code's PATH. If that id matches `^[\w.-]+$` and the home is set, it writes `{ ...info, at: Date.now() }` to `<home>/.local/state/herdr-session-bar/<terminal>.json`. With no `HC_TERMINAL_ID` it writes nothing. It writes when the info changed, and at least once per load.
 
 `promptLine`, off by default: when `true` (or the string `"true"`), it adds one line under Claude's prompt hint: meters as `▬` bars, model, effort and context size on the left; the branch with `*` if dirty (and `⑂ routed to <model>` if routed) at the right. Turn it on in `/config`, or:
 

@@ -43,13 +43,19 @@ async function configuredEffort($: EngineInterface): Promise<string | null> {
   return row === undefined || row.value === null || row.value === undefined || row.value === '' ? null : String(row.value)
 }
 
+// The user's home: HOME, else USERPROFILE (Windows sets no HOME), read without a shell.
+async function userHome($: EngineInterface): Promise<string | null> {
+  return (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || null
+}
+
 // The effort the user set in settings.json: the last resort, for a model whose requests
 // carry none yet and a /config menu with no effort row.
 async function settingsEffort($: EngineInterface): Promise<string | null> {
-  const r = await $.process.run(['sh', '-c', 'cat "$HOME/.claude/settings.json"']).catch(() => null)
+  const home = await userHome($).catch(() => null)
+  const text = home === null ? null : await $.fs.read(`${home}/.claude/settings.json`).catch(() => null)
 
   try {
-    const level = r !== null && r.exitCode === 0 ? (JSON.parse(r.stdout) as { effortLevel?: unknown }).effortLevel : undefined
+    const level = typeof text === 'string' ? (JSON.parse(text) as { effortLevel?: unknown }).effortLevel : undefined
 
     return typeof level === 'string' && level !== '' ? level : null
   } catch {
@@ -82,13 +88,11 @@ async function routerSwitch($: EngineInterface): Promise<{ status: 'on' | 'off' 
 let herdrFile: Promise<string | null> | null = null
 
 function herdrPath($: EngineInterface): Promise<string | null> {
-  herdrFile ??= $.process
-    .run(['sh', '-c', 'printf "%s\\n%s" "$HC_TERMINAL_ID" "$HOME"'])
-    .then(r => {
-      const [terminal, home] = r.stdout.split('\n')
-
-      return r.exitCode === 0 && terminal && home && /^[\w.-]+$/.test(terminal) ? `${home}/.local/state/herdr-session-bar/${terminal}.json` : null
-    })
+  // Read from the environment, not through `sh`: Windows has no `sh` on Claude Code's PATH.
+  herdrFile ??= Promise.all([$.env.get('HC_TERMINAL_ID'), userHome($)])
+    .then(([terminal, home]) =>
+      terminal && home && /^[\w.-]+$/.test(terminal) ? `${home}/.local/state/herdr-session-bar/${terminal}.json` : null,
+    )
     .catch(() => null)
 
   return herdrFile

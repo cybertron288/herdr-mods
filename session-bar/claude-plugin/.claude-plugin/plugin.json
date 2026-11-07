@@ -1,6 +1,6 @@
 {
   "name": "session-bar",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Claude Code's half of Herdr's session-bar: sends model, effort, context window and usage to the bar",
   "types": "./types/index.d.ts",
   "userConfig": {
