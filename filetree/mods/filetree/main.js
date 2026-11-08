@@ -158,7 +158,7 @@ async function listDir(path, on) {
     return { entries: sortEntries(list.slice(0, PER_FOLDER)), more: list.length > PER_FOLDER };
   }
   // One stat call for the folder: GNU's -c, else BSD's -f. "/" can't be in a name, so it splits.
-  const script = `cd "$1" 2>/dev/null || exit 3; set --; for p in * .[!.]* ..?*; do [ -e "$p" ] || [ -L "$p" ] || continue; [ "$p" = .git ] && continue; set -- "$@" "$p"; [ $# -gt ${PER_FOLDER} ] && break; done; [ $# -eq 0 ] && exit 0; if stat -c %s . >/dev/null 2>&1; then stat -c '%F/%s/%Y/%n' -- "$@"; else stat -f '%HT/%z/%m/%N' -- "$@"; fi; exit 0`;
+  const script = `export LC_ALL=C; cd "$1" 2>/dev/null || exit 3; set --; for p in * .[!.]* ..?*; do [ -e "$p" ] || [ -L "$p" ] || continue; [ "$p" = .git ] && continue; set -- "$@" "$p"; [ $# -gt ${PER_FOLDER} ] && break; done; [ $# -eq 0 ] && exit 0; if stat -c %s . >/dev/null 2>&1; then stat -c '%F/%s/%Y/%n' -- "$@"; else stat -f '%HT/%z/%m/%N' -- "$@"; fi; exit 0`;
   const r = await exec("sh", ["-c", script, NAME, path], { on });
   if (r.code === 3) throw new Error("Cannot open this folder");
   const list = [];
