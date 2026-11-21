@@ -145,11 +145,12 @@ export default class YtMusic extends View {
       .on_size_change((size, cx) => { if (Math.abs(size.width - (this.width ?? 0)) > 2) { this.width = size.width; cx.notify(); } });
     if (!s) return box;
     if (s.error === "js-off") {
+      const b = s.browser ?? "Chrome";
       return box.child(h_flex().gap(8).items_center()
         .child(svg(ICON("music")).size(12).flex_none().text_color(t.dim))
         .child(div().flex_1().min_w(0).truncate().text_size(11.5).text_color(t.dim)
-          .tooltip("Chrome: View > Developer > Allow JavaScript from Apple Events")
-          .child("Chrome: allow JavaScript from Apple Events")));
+          .tooltip(`${b}: View > Developer > Allow JavaScript from Apple Events`)
+          .child(`${b}: allow JavaScript from Apple Events`)));
     }
     const button = (id, icon, tip) => {
       const main = id === "toggle";

@@ -18,15 +18,26 @@ const READ_JS = `(() => {
   return JSON.stringify({ title: m.title, artist: m.artist, paused: v.paused, seconds: v.currentTime, duration: v.duration || 0 })
 })()`;
 
-const press = (label) => `document.querySelector('ytmusic-wiz-player-controls [aria-label="${label}"], ytmusic-player-bar [aria-label="${label}"]')?.click()`;
+// By class, not aria-label: the label follows the page language ("Siguiente", "Weiter").
+const press = (cls, label) => `document.querySelector('ytmusic-player-bar .${cls}-button, ytmusic-wiz-player-controls [aria-label="${label}"], ytmusic-player-bar [aria-label="${label}"]')?.click()`;
 const SEEK = 10;
 const ACTIONS = {
-  previous: press("Previous"),
+  previous: press("previous", "Previous"),
   back: `(v => { v.currentTime = Math.max(0, v.currentTime - ${SEEK}) })(document.querySelector('video'))`,
   toggle: `(v => v.paused ? v.play() : v.pause())(document.querySelector('video'))`,
   forward: `(v => { v.currentTime = v.currentTime + ${SEEK} })(document.querySelector('video'))`,
-  next: press("Next"),
+  next: press("next", "Next"),
 };
+
+// Chromium browsers that take "execute javascript" over Apple Events, by bundle id. The
+// first running one with a music.youtube.com tab wins.
+const BROWSERS = [
+  ["com.google.Chrome", "Chrome"],
+  ["com.brave.Browser", "Brave"],
+  ["com.microsoft.edgemac", "Edge"],
+  ["com.vivaldi.Vivaldi", "Vivaldi"],
+  ["org.chromium.Chromium", "Chromium"],
+];
 
 const TICK = 0.5; // s: how often cmd.json is looked at
 const READ_EVERY = 2; // ticks between reads while a tab plays (1 s)
@@ -42,7 +53,10 @@ function run(argv) {
   };
   const writeFile = (p, text) => $(text).writeToFileAtomicallyEncodingError(p, true, $.NSUTF8StringEncoding, null);
 
-  const chrome = Application("Google Chrome");
+  // Only installed browsers: Application(id) throws for one that isn't, and it never
+  // launches anything by itself.
+  const browsers = BROWSERS.flatMap(([id, name]) => { try { return [{ id, name, app: Application(id) }]; } catch (_) { return []; } });
+  let found = null; // the browser whose tab we last read
   let tab = null, last = null, written = "", tick = 0, lastCmd = null;
 
   const publish = (state) => {
@@ -58,11 +72,11 @@ function run(argv) {
   // After 3 s it gives up and the loop looks again. { out } | { none } | { off } | { gone }.
   const MARK_NONE = "\u0001none";
   const compiled = new Map();
-  const exec = (js) => {
+  const exec = (js, b) => {
     const lit = js.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
     const src = [
       "with timeout of 3 seconds",
-      "tell application \"Google Chrome\"",
+      "tell application id \"" + b.id + "\"",
       "repeat with w in windows",
       "repeat with t in tabs of w",
       "if URL of t contains \"music.youtube.com\" then return execute t javascript \"" + lit + "\"",
@@ -87,15 +101,27 @@ function run(argv) {
     return out === MARK_NONE ? { none: true } : { out: out ?? "" };
   };
 
-  // Asking a Chrome that isn't running would launch it.
-  const chromeUp = () => chrome.running();
+  // Asking a browser that isn't running would launch it.
+  const up = () => browsers.filter((b) => b.app.running());
+
+  // The browser that had the tab goes first; then the others that run.
+  const readAny = () => {
+    let running = up();
+    if (running.includes(found)) running = [found, ...running.filter((b) => b !== found)];
+    for (const b of running) {
+      const r = exec(READ_JS, b);
+      if (r.off) return { off: b.name };
+      if (r.out) { found = b; return r; }
+    }
+    found = null;
+    return {};
+  };
 
   const read = () => {
-    if (!chromeUp()) { last = null; return publish(null); }
-    const r = exec(READ_JS);
+    const r = readAny();
     tab = r.out ? true : null;
-    if (r.off) return publish({ error: "js-off" });
-    if (r.none || r.gone || !r.out) { last = null; return publish(null); }
+    if (r.off) { last = null; return publish({ error: "js-off", browser: r.off }); }
+    if (!r.out) { last = null; return publish(null); }
     let t;
     try { t = JSON.parse(r.out); } catch (_) { return; }
     const now = Date.now();
@@ -118,7 +144,9 @@ function run(argv) {
       if (cmd?.action === "quit") { publish(null); return; }
       // A press left from before this daemon started (it was down) is not replayed.
       if (ACTIONS[cmd?.action] && Date.now() - (cmd.n || 0) < 5000) {
-        if (chromeUp()) exec(ACTIONS[cmd.action]);
+        // A press can come before the first read has found the tab.
+        if (!found?.app.running()) readAny();
+        if (found) exec(ACTIONS[cmd.action], found);
         last = null; // read it fresh now
         read();
       }
