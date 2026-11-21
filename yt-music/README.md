@@ -2,15 +2,15 @@
 
 ![yt-music](../docs/screenshots/yt-music.png)
 
-Now playing from YouTube Music in Google Chrome: the track, the artist, a progress bar and
+Now playing from YouTube Music in Chrome, Brave, Edge, Vivaldi or Chromium: the track, the artist, a progress bar and
 previous, back 10 s, play/pause, forward 10 s and next. The block takes no room while
 nothing plays and grows when a track does.
 
-macOS only: it talks to Chrome through Apple Events.
+macOS only: it talks to the browser through Apple Events.
 
-## Set up Chrome
+## Set up the browser
 
-In Chrome: **View → Developer → Allow JavaScript from Apple Events**. Until then the block
+In the browser that plays: **View → Developer → Allow JavaScript from Apple Events**. Until then the block
 shows a one-line reminder. Then play something on `music.youtube.com` in any tab.
 
 ## Install
@@ -37,7 +37,7 @@ the foot of the side panel:
 
 ## How it works
 
-- `daemon.js` is the only process that talks to Chrome: one `osascript` kept running as a
+- `daemon.js` is the only process that talks to the browser: one `osascript` kept running as a
   herdr-core terminal named `ytm-<hash>`, so a reload or a second copy reuses it. It reads
   the YouTube Music tab every second and writes
   `~/.config/herdr-app/data/yt-music/state.json` when the track, play/pause or position

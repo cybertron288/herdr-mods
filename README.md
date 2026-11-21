@@ -18,7 +18,7 @@ Each folder is one mod as [herdr.dev/mods](https://herdr.dev/mods) lists it:
 | [run-scripts](run-scripts) | Run control for JavaScript projects: pick a `package.json` script and run it in a new tab | [herdr.dev/mods/cybertron288/run-scripts](https://herdr.dev/mods/cybertron288/run-scripts) |
 | [ci-dash](ci-dash) | CI runs: GitHub Actions for the repo you're in, with dispatch and artifacts. Based on dougcunha's ci-dash-app | [herdr.dev/mods/cybertron288/ci-dash](https://herdr.dev/mods/cybertron288/ci-dash) |
 | [slack](slack) | Read and answer Slack in the side panel | [herdr.dev/mods/cybertron288/slack](https://herdr.dev/mods/cybertron288/slack) |
-| [yt-music](yt-music) | Now playing and controls for YouTube Music in Chrome (macOS) | [herdr.dev/mods/cybertron288/yt-music](https://herdr.dev/mods/cybertron288/yt-music) |
+| [yt-music](yt-music) | Now playing and controls for YouTube Music in Chrome, Brave, Edge, Vivaldi or Chromium (macOS) | [herdr.dev/mods/cybertron288/yt-music](https://herdr.dev/mods/cybertron288/yt-music) |
 
 The Nightfall layout that puts them all together lives in its own repo,
 [herdr-nightfall](https://github.com/cybertron288/herdr-nightfall).

@@ -1,6 +1,6 @@
 # YT Music
 
-A small now-playing block for the foot of Herdr's side panel. It shows the track that plays in YouTube Music in Google Chrome: a music icon, the title and the artist, the elapsed and total time with a progress bar, and five round-ish controls. While nothing plays, the block is 0 px tall and you see nothing. When a track starts, it grows to 92 px. macOS only: it runs `osascript` and talks to Chrome through Apple Events.
+A small now-playing block for the foot of Herdr's side panel. It shows the track that plays in YouTube Music in Chrome, Brave, Edge, Vivaldi or Chromium: a music icon, the title and the artist, the elapsed and total time with a progress bar, and five round-ish controls. While nothing plays, the block is 0 px tall and you see nothing. When a track starts, it grows to 92 px. macOS only: it runs `osascript` and talks to the browser through Apple Events.
 
 ![YT Music](preview.png)
 
@@ -12,7 +12,7 @@ One block, full width of its column, with a 1 px top border (theme `border`) and
 2. **Time and bar.** Elapsed time, the bar, total time, 8 px apart, 11 px text. Each time sits in a 34 px box in `dim`, in `m:ss` form (`3:07`; no hours, so 1 h 5 min reads `65:00`). The total is right-aligned. The bar is 4 px high with a 2 px radius, `raised` track, and a fill in `ansi2` while playing or `dim` while paused. The bar width is the block width minus 24 (padding), 68 (two times) and 16 (two gaps), never under 40 px, and it follows the block width when it changes by more than 2 px. Before the first width is known it assumes 360 px. With a total of 0 (a live stream) the fill is empty.
 3. **Controls.** Five buttons, centered, 6 px apart, left to right: skip-back (24 px square, 4 px radius, "Previous"), rewind (24 px, "Back 10 s"), play/pause (28 px, fully round with a 14 px radius, `raised` fill, `foreground` icon), fast-forward (24 px, "Forward 10 s"), skip-forward (24 px, "Next"). All icons are 12 px Lucide icons in `muted`; on hover the button fills with `hover` and its icon turns `foreground`. The middle button shows the `pause` icon while playing and `play` while paused, with the tooltip "Pause" or "Play". The pointer is a hand.
 
-Reminder line. When Chrome blocks scripting, the three rows are replaced by one row: a 12 px `music` icon in `dim`, then "Chrome: allow JavaScript from Apple Events" in `dim`, 11.5 px, truncated. Its tooltip reads "Chrome: View > Developer > Allow JavaScript from Apple Events".
+Reminder line. When the browser blocks scripting, the three rows are replaced by one row: a 12 px `music` icon in `dim`, then "<Browser>: allow JavaScript from Apple Events" in `dim`, 11.5 px, truncated, where `<Browser>` is the short name the daemon sends (`Brave`, `Edge`; `Chrome` when none is sent). Its tooltip reads "<Browser>: View > Developer > Allow JavaScript from Apple Events".
 
 Theme. Every color comes from `theme()`, so the block follows the person's theme. With Nightfall: background `#212121`, border `#2a2a2a`, text `muted` `#d6d6d6`, `dim` `#8f8f8f`, `foreground` `#c4c4c4`, `raised` (play button, bar track) `#2b2b2b`, `hover` `#262626`, `ansi1` (playing icon) `#e06c75`, `ansi2` (playing bar fill) `#98c379`.
 
@@ -24,9 +24,9 @@ Block height. 92 px with a track, 36 px with the reminder line, 0 px with nothin
 
 **Paused.** The title turns `muted`, the icon and the bar fill turn `dim`, the middle button shows play. The clock and bar stand still.
 
-**Nothing plays.** The block is 0 px. This holds when Chrome is not running, when no tab has `music.youtube.com` open, when the page has no `<video>` or no media metadata, and when Chrome does not answer within 3 s. The daemon writes `null` as the state in all of these cases. If Chrome is not running, the daemon does not ask it anything (that would start Chrome).
+**Nothing plays.** The block is 0 px. This holds when no supported browser is running, when no tab has `music.youtube.com` open, when the page has no `<video>` or no media metadata, and when the browser does not answer within 3 s. The daemon writes `null` as the state in all of these cases. The daemon never asks a browser that is not running (that would start it).
 
-**Chrome setting off.** When the Apple Event error says JavaScript from Apple Events is turned off, the daemon writes `{"error":"js-off"}`. The block shows the reminder line at 36 px. It goes back to the track view on its own once the setting is on and a tab plays.
+**Browser setting off.** When the Apple Event error says JavaScript from Apple Events is turned off, the daemon writes `{"error":"js-off","browser":"<short name>"}`. The block shows the reminder line at 36 px. It goes back to the track view on its own once the setting is on and a tab plays.
 
 **Buttons.** A click writes `{action, n: Date.now()}` to `cmd.json`. The daemon runs it in the YouTube Music tab:
 
@@ -43,7 +43,7 @@ Play/pause shows its change at once: the mod flips the paused state and freezes 
 **Refresh and re-read timing.**
 
 - The daemon checks `cmd.json` every 0.5 s.
-- While a tab plays, it reads Chrome every 1 s (every 2nd tick). With no tab found, it looks again every 5 s (every 10th tick).
+- While a tab plays, it reads the browser every 1 s (every 2nd tick). With no tab found, it looks again every 5 s (every 10th tick).
 - The mod reads `state.json` when the folder changes. It does not poll for that.
 - As a backup, while a track plays, the mod reads the file again every 5 s, and at once when its clock runs more than 1 s past the total (end of track, so the next title shows without waiting for a folder event).
 
@@ -79,7 +79,7 @@ hc run --name ytm-<hash> --bg --no-parent --rm --json -- osascript -l JavaScript
 
 `<hash>` is FNV-1a (32-bit, offset `0x811c9dc5`, prime `0x01000193`) of the text of `daemon.js`, as 8 hex digits. A terminal name can have only one live holder, so a second `run` fails with name taken and nothing else starts. Old `ytm-` terminals with another hash are ended with `hc kill <address>`.
 
-**The daemon** is one long `osascript -l JavaScript daemon.js <data dir>` loop (JXA with `ObjC.import("Foundation")`). It never launches Chrome: it asks `Application("Google Chrome").running()` first. It reads the page with this JS, run in the first tab whose URL contains `music.youtube.com`:
+**The daemon** is one long `osascript -l JavaScript daemon.js <data dir>` loop (JXA with `ObjC.import("Foundation")`). It never launches a browser. At start it builds the list of installed browsers from these bundle ids, in this order: `com.google.Chrome`, `com.brave.Browser`, `com.microsoft.edgemac`, `com.vivaldi.Vivaldi`, `org.chromium.Chromium`. `Application(id)` throws for one that is not installed, so it is left out. Each read asks `.running()` of each one and tries the running ones, the browser that last had the tab first. The AppleScript says `tell application id "<bundle id>"`. It reads the page with this JS, run in the first tab whose URL contains `music.youtube.com`:
 
 ```js
 (() => {
@@ -89,9 +89,9 @@ hc run --name ytm-<hash> --bg --no-parent --rm --json -- osascript -l JavaScript
 })()
 ```
 
-The prev and next buttons are found with `ytmusic-wiz-player-controls [aria-label="Previous"], ytmusic-player-bar [aria-label="Previous"]` (and `"Next"`), then `.click()`.
+The prev and next buttons are found with `ytmusic-player-bar .previous-button, ytmusic-wiz-player-controls [aria-label="Previous"], ytmusic-player-bar [aria-label="Previous"]` (and `.next-button`, `"Next"`), then `.click()`. The class comes first because `aria-label` follows the page language: in Spanish the buttons read "Anterior" and "Siguiente", and an English-only selector finds nothing.
 
-**The compiled script cache.** Each Apple Event goes through an `NSAppleScript` whose source wraps the JS in `with timeout of 3 seconds` and loops over `windows` and `tabs of w`. JXA has no timeout setting, so this is how a Chrome that never answers is cut off. The compiled script is kept in a `Map` keyed by its source text, one per distinct JS (the read and the five actions), and reused.
+**The compiled script cache.** Each Apple Event goes through an `NSAppleScript` whose source wraps the JS in `with timeout of 3 seconds` and loops over `windows` and `tabs of w`. JXA has no timeout setting, so this is how a browser that never answers is cut off. The compiled script is kept in a `Map` keyed by its source text, one per distinct JS and browser (the read and the five actions, for each browser that played), and reused.
 
 **Files in `data/yt-music/`** (under `appHome()`):
 
@@ -102,27 +102,29 @@ The mod creates the folder if it is missing and ignores folder events that name 
 
 ## Watch out
 
-It runs a program and talks to another app. The daemon is an `osascript` process that sends Apple Events to Google Chrome and runs JavaScript inside the YouTube Music tab: it reads the video state and the media title and artist, and it can click, seek, play and pause. Nothing goes over the network. It reads and writes only `data/yt-music/`, but Chrome must allow it: **View > Developer > Allow JavaScript from Apple Events**. Until that is on, only the reminder line shows. If you add this mod to someone's window, tell them this first.
+It runs a program and talks to another app. The daemon is an `osascript` process that sends Apple Events to a Chromium browser (Chrome, Brave, Edge, Vivaldi or Chromium) and runs JavaScript inside the YouTube Music tab: it reads the video state and the media title and artist, and it can click, seek, play and pause. Nothing goes over the network. It reads and writes only `data/yt-music/`, but the browser must allow it: **View > Developer > Allow JavaScript from Apple Events**. Until that is on, only the reminder line shows. If you add this mod to someone's window, tell them this first.
 
 - **Keep the compiled scripts.** Making a new `NSAppleScript` on every read (twice a second) piled up Objective-C objects and `osascript` crashed with signal 11 after about 50 s. The `Map` keyed by source text is the fix. Do not put a changing value (a timestamp, a counter) into the script text, or the cache never hits and the crash returns. All varying data must be in the JS, which is fixed per action.
 - **No autorelease pool.** The loop runs without one, so allocations in it are not released early. Hence one cached script per JS, and no per-tick objects that can be avoided. The loop is `for (;;)` with `delay(0.5)`.
 - **Stale commands.** If the daemon is down when a button is pressed, `cmd.json` stays on disk. On start the daemon ignores a command whose `n` is 5 s or more old, so an old pause does not fire later. An identical command text twice in a row is ignored, but `n` differs each time.
 - **End of track.** The clock would run past the total if the next write from the daemon were missed. So the mod reads `state.json` again as soon as the clock is over the total by 1 s, and every 5 s while playing, not only on folder events.
-- **Timeouts.** The `with timeout of 3 seconds` block means a Chrome that hangs gives `gone`, which publishes `null`: the block collapses and comes back when Chrome answers. A button press waits behind a read that is in progress, so up to 3 s in that case.
+- **Timeouts.** The `with timeout of 3 seconds` block means a browser that hangs gives `gone`, which publishes `null`: the block collapses and comes back when the browser answers. A button press waits behind a read that is in progress, so up to 3 s in that case.
 - **Duplicates.** Do not start the daemon with `osascript` yourself. Use `hc run --name`, or a second one will fight over `cmd.json`.
 - **First match only.** It reads the first YouTube Music tab it finds, in window order. Other tabs or windows are ignored.
 - **Forward has no cap in the mod.** Seeking past the end is left to the page, which ends the track.
-- **macOS only.** There is no Windows or Linux path, and no use of Chrome profiles or other browsers.
+- **Browsers.** Only Chromium browsers with the `execute javascript` Apple Event. Safari, Firefox and Arc are not supported. With several running, the first one in the list that has a YouTube Music tab wins.
+- **A press before the first read.** Right after a start the daemon has not found the tab yet. A command then looks for it first, so the press is not lost.
+- **macOS only.** There is no Windows or Linux path, and no use of browser profiles.
 - **Hash name.** Editing `daemon.js` changes the daemon name, so the next start kills the old daemon and starts the new one.
 
 ## Done when
 
 - `herdr-app check mods/yt-music` passes.
-- With a layout block `{ "id": "yt-music", ... "size": { "px": 0 } }` and Chrome closed, the block is 0 px tall.
+- With a layout block `{ "id": "yt-music", ... "size": { "px": 0 } }` and no supported browser running, the block is 0 px tall.
 - `hc ls --json` lists exactly one live terminal named `ytm-<8 hex digits>` after the mod loads, and still one after a mod reload.
-- Chrome with "Allow JavaScript from Apple Events" off and a `music.youtube.com` tab open: the block is 36 px and shows "Chrome: allow JavaScript from Apple Events".
+- A browser with "Allow JavaScript from Apple Events" off and a `music.youtube.com` tab open: the block is 36 px and shows "<Browser>: allow JavaScript from Apple Events" with that browser's name.
 - With the setting on and a track playing: the block is 92 px, shows the title, artist, `m:ss` times, and the elapsed time moves each second.
-- Clicking play/pause pauses the track in Chrome and the button shows the play icon at once; clicking again resumes it.
+- Clicking play/pause pauses the track in the browser and the button shows the play icon at once; clicking again resumes it.
 - Back and forward move the position by 10 s; previous and next change the track.
 - Closing the YouTube Music tab makes the block 0 px again within a few seconds.
 - Ending the `ytm-` terminal with `hc kill <name>` brings it back within 10 s.
